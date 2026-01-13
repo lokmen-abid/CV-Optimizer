@@ -1,0 +1,41 @@
+<!doctype html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>ATS CV Optimizer — Accueil</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+</head>
+<body>
+  <div class="container py-5">
+    <h1 class="mb-4">ATS CV Optimizer</h1>
+    <p class="text-muted">Chargez votre CV et copiez/collez la description du poste (Job Description). Cliquez sur <strong>Améliorer ton CV</strong> pour passer à l'étape suivante.</p>
+
+    <form action="/improve" method="post" enctype="multipart/form-data" class="mt-4">
+      <div class="mb-3">
+        <label for="cv_file" class="form-label">Votre CV (PDF / DOCX / DOC / TXT)</label>
+        <input class="form-control" type="file" id="cv_file" name="cv_file" accept=".pdf,.docx,.doc,.txt">
+        <div class="form-text">Optionnel — vous pouvez aussi coller le texte du CV ci‑dessous.</div>
+      </div>
+
+      <div class="mb-3">
+        <label for="cv_text_input" class="form-label">Ou collez votre CV (texte brut)</label>
+        <textarea class="form-control" id="cv_text_input" name="cv_text_input" rows="8" placeholder="Collez le texte de votre CV ici si vous ne téléchargez pas de fichier..."></textarea>
+      </div>
+
+      <div class="mb-3">
+        <label for="job_description" class="form-label">Description du poste (Job Description)</label>
+        <textarea class="form-control" id="job_description" name="job_description" rows="10" placeholder="Collez ou écrivez la Job Description ici..."></textarea>
+      </div>
+
+      <div class="d-flex gap-2">
+        <button type="submit" class="btn btn-primary">Améliorer ton CV</button>
+        <button type="reset" class="btn btn-outline-secondary">Effacer</button>
+      </div>
+    </form>
+
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+</body>
+</html>
