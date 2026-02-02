@@ -60,10 +60,11 @@ Rôle de chaque composant
   - parse_jd(source, from_file=False, do_clean=True) -> dict
 
 - `analyzers/ats.py` : calcul heuristique du score ATS
-  - calculate_ats_score(text) -> int (0-100)
-    - critères : verbes d'action, éléments quantifiables, sections présentes, longueur, contact.
-  - generate_recommendations(text, ats_score) -> List[str]
-    - recommandations textuelles basées sur les mêmes heuristiques.
+  - calculate_ats_score(text, domain=None, lang=None) -> dict
+    - retourne un dictionnaire détaillé {'total': int, 'breakdown': {...}} contenant le score global et les sous-scores (verbres d'action, quantifiables, sections, longueur, contact).
+    - critères : verbes d'action (spécifiques au domaine si fourni), éléments quantifiables, sections présentes, longueur, contact.
+  - generate_recommendations(text, ats_res, domain=None, lang=None, jd_text=None, match_results=None) -> List[str]
+    - génère des recommandations pertinentes en comparant le CV et la Job Description; utilise prioritairement les recommandations définies dans le fichier JSON du domaine choisi et complète avec des règles génériques.
 
 - `analyzers/similarity_scorer.py` : similarité CV ↔ JD (TF‑IDF + embeddings)
   - compute_tfidf_similarity(cv_text, jd_text, lang=None, top_n=20) -> dict | None

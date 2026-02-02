@@ -9,7 +9,19 @@ werkzeug>=2.2
 
 # Keyword extraction libraries (optionnel mais recommandés)
 keybert>=0.7.0
+yake>=0.4.8
+
+# Templating for recommendations
+jinja2>=3.1
+
+# Caching / joblib for embeddings cache
+joblib>=1.2
+# diskcache optional alternative: pip install diskcache
+# diskcache>=5.4.0
 
 # Optional extras for NLP/IA
 # keybert needs sentence-transformers (already listed); transformers may be required depending on model
 transformers
+
+# Tests
+pytest>=7.2

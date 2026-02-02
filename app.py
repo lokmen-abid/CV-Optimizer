@@ -15,10 +15,23 @@ UPLOAD_FOLDER = os.path.join(BASE_DIR, "uploads")
 os.makedirs(UPLOAD_FOLDER, exist_ok=True)
 app.config["UPLOAD_FOLDER"] = UPLOAD_FOLDER
 
+# Charger les domaines disponibles
+def _list_domains():
+    domains_dir = os.path.join(BASE_DIR, 'config', 'domains')
+    domains = []
+    try:
+        for fname in sorted(os.listdir(domains_dir)):
+            if fname.endswith('.json'):
+                domains.append(os.path.splitext(fname)[0])
+    except Exception:
+        pass
+    return domains
+
 
 @app.route('/')
 def index():
-    return render_template('index.html')
+    domains = _list_domains()
+    return render_template('index.html', domains=domains)
 
 
 # Route GET+POST pour traiter l'upload du CV et la JD
@@ -27,6 +40,9 @@ def improve():
     if request.method == 'POST':
         cv_file = request.files.get('cv_file')
         jd_text = request.form.get('job_description', '').strip()
+        domain = request.form.get('domain') or None
+        cv_lang_choice = request.form.get('cv_lang') or None
+        jd_lang_choice = request.form.get('jd_lang') or None
 
         cv_filename = None
         cv_sections = None
@@ -114,44 +130,45 @@ def improve():
             except Exception:
                 jd_parsed = {'text': jd_text, 'lang': None}
 
+        # override languages if user chose explicit
+        if cv_lang_choice and cv_lang_choice != 'auto':
+            cv_lang = cv_lang_choice
+        if jd_lang_choice and jd_lang_choice != 'auto':
+            jd_parsed['lang'] = jd_lang_choice
+
         # If no CV uploaded, abort early (CV is required)
         if not cv_text:
             logger.debug('Aucun fichier CV uploadé — le téléchargement d\'un CV est requis.')
             return render_template('improve.html', cv_filename=None, job_description=jd_parsed.get('text'), cv_sections=None, cv_lang=None, cv_text=None, jd_lang=jd_parsed.get('lang'))
 
-        # Calculer ATS
+        # Calculer ATS (maintenant retourne un dict détaillé)
         try:
             if calculate_ats_score is not None:
-                ats_score = calculate_ats_score(cv_text)
+                ats_res = calculate_ats_score(cv_text, domain=domain, lang=cv_lang)
+                ats_score = ats_res.get('total', 0)
             else:
+                ats_res = {'total': 0, 'breakdown': {}}
                 ats_score = 0
         except Exception as exc:
             logger.debug('Erreur calculate_ats_score: %s', exc)
+            ats_res = {'total': 0, 'breakdown': {}}
             ats_score = 0
-
-        # Recommandations
-        try:
-            if generate_recommendations is not None:
-                recommendations = generate_recommendations(cv_text, ats_score)
-            else:
-                recommendations = []
-        except Exception as exc:
-            logger.debug('Erreur generate_recommendations: %s', exc)
-            recommendations = []
 
         # Similarity TF-IDF
         try:
             if compute_tfidf_similarity is not None and jd_parsed.get('text'):
-                tfidf_res = compute_tfidf_similarity(cv_text, jd_parsed.get('text'), lang=cv_lang, top_n=20)
+                tfidf_res = compute_tfidf_similarity(cv_text, jd_parsed.get('text'), lang=jd_parsed.get('lang') or cv_lang, top_n=20)
                 match_results = {
                     'similarity_score': round((tfidf_res.get('score') or 0.0) * 100.0, 1),
-                    'tfidf_method': tfidf_res.get('tfidf_method')
+                    'tfidf_method': tfidf_res.get('tfidf_method'),
+                    'jd_top_terms': tfidf_res.get('jd_top_terms', []),
+                    'cv_top_terms': tfidf_res.get('cv_top_terms', [])
                 }
             else:
-                match_results = {'similarity_score': 0.0, 'tfidf_method': 'unavailable'}
+                match_results = {'similarity_score': 0.0, 'tfidf_method': 'unavailable', 'jd_top_terms': [], 'cv_top_terms': []}
         except Exception as exc:
             logger.debug('Erreur compute_tfidf_similarity: %s', exc)
-            match_results = {'similarity_score': 0.0, 'tfidf_method': 'error'}
+            match_results = {'similarity_score': 0.0, 'tfidf_method': 'error', 'jd_top_terms': [], 'cv_top_terms': []}
 
         # Keyword overlap
         try:
@@ -182,6 +199,16 @@ def improve():
             match_results['embed_score'] = 0.0
             match_results['embed_method'] = 'error'
 
+        # Recommandations (basées sur ats_res et match_results / jd text)
+        try:
+            if generate_recommendations is not None:
+                recommendations = generate_recommendations(cv_text, ats_res, domain=domain, lang=cv_lang, jd_text=jd_parsed.get('text'), match_results=match_results)
+            else:
+                recommendations = []
+        except Exception as exc:
+            logger.debug('Erreur generate_recommendations: %s', exc)
+            recommendations = []
+
         # Format des mots-clés: simple liste
         keywords_table = match_results.get('matching_keywords', [])
 
@@ -194,6 +221,7 @@ def improve():
             cv_text=cv_text,
             jd_lang=jd_parsed.get('lang'),
             ats_score=ats_score,
+            ats_res=ats_res,
             recommendations=recommendations,
             match_results=match_results,
             keywords_table=keywords_table,

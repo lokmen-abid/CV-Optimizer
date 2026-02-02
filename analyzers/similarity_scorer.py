@@ -14,14 +14,34 @@ def _tokenize_simple(text: str) -> List[str]:
     return [t for t in txt.split() if t]
 
 
+def _detect_language_from_text(jd_text: str, cv_text: Optional[str] = None) -> str:
+    """Heuristique simple pour détecter la langue (fr/en) à partir du texte fourni."""
+    sample = (jd_text or '')[:2000].lower()
+    french_indicators = ["profil", "compétences", "expérience", "formation", "langues", "résumé", "le", "la", "des"]
+    en_indicators = ["the", "and", "of", "experience", "skills"]
+    fr_score = sum(1 for w in french_indicators if w in sample)
+    en_score = sum(1 for w in en_indicators if w in sample)
+    if fr_score >= en_score and fr_score > 0:
+        return 'fr'
+    return 'en'
+
+
 def compute_tfidf_similarity(cv_text: str, jd_text: str, lang: Optional[str] = None, top_n: int = 20) -> Optional[Dict]:
     """Calcule similarité TF-IDF et extrait top terms pour JD et CV.
 
+    Supporte le français et l'anglais via `lang` ou heuristique.
+    Retourne dict: {'score': float, 'jd_top_terms': list, 'cv_top_terms': list, 'tfidf_method': str}
     """
     cv_text = (cv_text or '').strip()
     jd_text = (jd_text or '').strip()
     if not cv_text or not jd_text:
         return {'score': 0.0, 'jd_top_terms': [], 'cv_top_terms': [], 'tfidf_method': 'none'}
+
+    if lang is None:
+        try:
+            lang = _detect_language_from_text(jd_text, cv_text)
+        except Exception:
+            lang = 'en'
 
     # Essayer sklearn
     try:
@@ -38,6 +58,7 @@ def compute_tfidf_similarity(cv_text: str, jd_text: str, lang: Optional[str] = N
         sim = float(cosine_similarity(tfidf[0:1], tfidf[1:2])[0, 0])
         jd_vec = tfidf[0].toarray().ravel()
         cv_vec = tfidf[1].toarray().ravel()
+        # numpy argsort may include zeros; we filter later
         jd_top_idx = np.argsort(jd_vec)[::-1][:top_n]
         cv_top_idx = np.argsort(cv_vec)[::-1][:top_n]
         jd_top = [feature_names[i] for i in jd_top_idx if jd_vec[i] > 0]
