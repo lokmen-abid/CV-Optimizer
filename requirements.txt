@@ -8,20 +8,20 @@ scikit-learn>=1.2
 numpy>=1.24
 
 # Notes: Werkzeug and Jinja2 are pulled in by Flask; listed here only if you want explicit control
-werkzeug>=2.2
-jinja2>=3.1
+# werkzeug>=2.2
+# jinja2>=3.1
 
 # Optional / itération 1 (avancées)
 # Embeddings (lourds, nécessite PyTorch ou une runtime adaptée)
-sentence-transformers>=2.2.2
-# Cache pour embeddings (optionnel)
-joblib>=1.2
-diskcache>=5.4.0  # alternative à joblib
+# sentence-transformers>=2.2.2  # décommentez si vous installez embeddings localement
+# Cache pour embeddings (optionnel) — diskcache recommandé pour Option A
+# joblib>=1.2
+diskcache>=5.4.0  # alternative recommandée pour cache local
 
 # Keyword extraction (optionnel)
-keybert>=0.7.0
-yake>=0.4.8
-transformers  # pour certains modèles KeyBERT/transformers
+# keybert>=0.7.0
+# yake>=0.4.8
+# transformers  # pour certains modèles KeyBERT/transformers
 
 # Testing (optionnel)
 # pytest>=7.2

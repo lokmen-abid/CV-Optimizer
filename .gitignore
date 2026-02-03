@@ -5,5 +5,5 @@ __pycache__/
 .idea
 .env/
 .cache/
-config
+
 

@@ -121,10 +121,8 @@ def keyword_overlap(cv_text: str, jd_text: str) -> Dict:
 def compute_embedding_similarity(cv_text: str, jd_text: str, model_name: str = "all-MiniLM-L6-v2") -> Optional[Dict[str, float]]:
     """Calcule la similarité par embeddings entre la JD et le CV.
 
-    Essaie (dans l'ordre):
-    - sentence-transformers (recommandé)
-    - spaCy vectors (si modèle installé)
-    - fallback Jaccard (token set)
+    Essaie d'utiliser `analyzers.embeddings` (caching, chunking) si disponible.
+    Sinon, conserve les méthodes précédentes (sentence-transformers direct, spaCy vectors, Jaccard fallback).
 
     Retourne: {'score': float, 'method': str} ou None en cas d'erreur.
     """
@@ -133,7 +131,20 @@ def compute_embedding_similarity(cv_text: str, jd_text: str, model_name: str = "
     if not cv_text or not jd_text:
         return {'score': 0.0, 'method': 'none'}
 
-    # 1) sentence-transformers
+    # Prefer using the embeddings manager (with cache & preload)
+    try:
+        from analyzers.embeddings import compute_embedding_similarity as _emb_comp  # type: ignore
+        try:
+            res = _emb_comp(cv_text, jd_text, model_name=model_name, use_cache=True)
+            if isinstance(res, dict):
+                return res
+        except Exception as exc:
+            logger.debug('analyzers.embeddings.compute_embedding_similarity failed: %s', exc)
+    except Exception:
+        # embeddings manager not available
+        pass
+
+    # 1) sentence-transformers (fallback)
     try:
         from sentence_transformers import SentenceTransformer
         import numpy as np

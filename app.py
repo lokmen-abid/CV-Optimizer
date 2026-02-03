@@ -15,16 +15,17 @@ UPLOAD_FOLDER = os.path.join(BASE_DIR, "uploads")
 os.makedirs(UPLOAD_FOLDER, exist_ok=True)
 app.config["UPLOAD_FOLDER"] = UPLOAD_FOLDER
 
-# Charger les domaines disponibles
+
+# Charger les domaines disponibles (chemin robuste)
 def _list_domains():
-    domains_dir = os.path.join(BASE_DIR, 'config', 'domains')
+    domains_dir = os.path.join(app.root_path, 'config', 'domains')
     domains = []
     try:
         for fname in sorted(os.listdir(domains_dir)):
             if fname.endswith('.json'):
                 domains.append(os.path.splitext(fname)[0])
-    except Exception:
-        pass
+    except Exception as exc:
+        logger.debug('Impossible de lister les domaines: %s', exc)
     return domains
 
 
@@ -32,6 +33,19 @@ def _list_domains():
 def index():
     domains = _list_domains()
     return render_template('index.html', domains=domains)
+
+
+# Précharger le modèle embeddings en background si possible (itération 1 option A)
+try:
+    from analyzers.embeddings import preload_model  # type: ignore
+    try:
+        preload_model(background=True)
+        logger.debug('Preload embeddings launched in background')
+    except Exception as exc:
+        logger.debug('Preload embeddings failed to start: %s', exc)
+except Exception:
+    # embeddings optional
+    pass
 
 
 # Route GET+POST pour traiter l'upload du CV et la JD
