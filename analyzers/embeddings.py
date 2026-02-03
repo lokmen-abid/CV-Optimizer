@@ -135,13 +135,34 @@ def _load_model(model_name: str):
 
     try:
         logger.debug("Chargement modèle embeddings: %s", model_name)
-        m = SentenceTransformer(model_name)
+        # for constrained environments prefer explicit cpu device
+        try:
+            m = SentenceTransformer(model_name, device='cpu')
+        except TypeError:
+            # older versions accept device via .to('cpu') or ignore device arg
+            m = SentenceTransformer(model_name)
+            try:
+                m.to('cpu')
+            except Exception:
+                pass
         _MODEL = m
         _MODEL_NAME = model_name
         return _MODEL
     except Exception as exc:
         logger.debug("Erreur chargement sentence-transformers model %s: %s", model_name, exc)
         return None
+
+
+def get_model(model_name: Optional[str] = None):
+    """Wrapper public pour récupérer le singleton du modèle.
+
+    `get_model` est la fonction que les autres modules doivent appeler.
+    Elle délègue à `_load_model` et applique le nom de modèle par défaut si None.
+    Retourne l'instance du modèle ou None si la librairie n'est pas disponible.
+    """
+    if model_name is None:
+        model_name = EMBEDDING_MODEL
+    return _load_model(model_name)
 
 
 def preload_model(model_name: Optional[str] = None, background: bool = False) -> None:

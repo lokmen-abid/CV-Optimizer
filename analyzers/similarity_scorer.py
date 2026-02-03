@@ -26,6 +26,15 @@ def _detect_language_from_text(jd_text: str, cv_text: Optional[str] = None) -> s
     return 'en'
 
 
+# --- Use centralized get_model from analyzers.embeddings -----------------
+try:
+    from analyzers.embeddings import get_model  # type: ignore
+except Exception:
+    # If embeddings module missing, we'll fallback gracefully
+    def get_model(name: str = "sentence-transformers/all-MiniLM-L6-v2"):
+        return None
+
+
 def compute_tfidf_similarity(cv_text: str, jd_text: str, lang: Optional[str] = None, top_n: int = 20) -> Optional[Dict]:
     """Calcule similarité TF-IDF et extrait top terms pour JD et CV.
 
@@ -146,10 +155,12 @@ def compute_embedding_similarity(cv_text: str, jd_text: str, model_name: str = "
 
     # 1) sentence-transformers (fallback)
     try:
-        from sentence_transformers import SentenceTransformer
         import numpy as np
-        model = SentenceTransformer(model_name)
-        emb = model.encode([jd_text, cv_text], convert_to_numpy=True)
+        # use centralized get_model from analyzers.embeddings
+        m = get_model(f"sentence-transformers/{model_name}" if not str(model_name).startswith("sentence-transformers") else model_name)
+        if m is None:
+            raise Exception("sentence-transformers model unavailable")
+        emb = m.encode([jd_text, cv_text], convert_to_numpy=True)
         a, b = emb[0], emb[1]
         denom = (np.linalg.norm(a) * np.linalg.norm(b))
         if denom == 0:
@@ -157,7 +168,7 @@ def compute_embedding_similarity(cv_text: str, jd_text: str, model_name: str = "
         sim = float((a @ b) / denom)
         return {'score': max(0.0, float(sim)), 'method': 'sentence-transformers'}
     except Exception as exc:
-        logger.debug('sentence-transformers non disponible ou erreur: %s', exc)
+        logger.debug('sentence-transformers non disponible ou erreur (centralized loader): %s', exc)
 
     # 2) spaCy vector
     try:
