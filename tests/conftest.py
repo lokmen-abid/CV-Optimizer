@@ -1,6 +1,12 @@
 import pytest
 import os
+import sys
 from pathlib import Path
+
+# Ensure project root is on sys.path so tests can import local packages like analyzers, parsers
+ROOT = Path(__file__).resolve().parents[1]
+if str(ROOT) not in sys.path:
+    sys.path.insert(0, str(ROOT))
 
 TEST_DATA_DIR = Path(__file__).resolve().parent / "data"
 TEST_DATA_DIR.mkdir(exist_ok=True)

@@ -123,34 +123,35 @@ def _chunk_text(text: str, max_chars: int = DEFAULT_CHUNK_SIZE, overlap: int = D
 
 
 def _load_model(model_name: str):
-    """Charge le modèle sentence-transformers une seule fois (singleton)."""
+    """Charge (ou récupère) le modèle d'embeddings en déléguant au `app.get_model()` s'il existe.
+
+    Pour respecter la contrainte de chargement paresseux centralisé, on évite d'importer
+    `SentenceTransformer` ici et on délègue à `app.get_model()` (défini dans `app.py`).
+    """
     global _MODEL, _MODEL_NAME
     if _MODEL is not None and _MODEL_NAME == model_name:
         return _MODEL
-    try:
-        from sentence_transformers import SentenceTransformer  # type: ignore
-    except Exception as exc:
-        logger.debug("sentence-transformers non disponible: %s", exc)
-        return None
 
+    # Tentative: déléguer à app.get_model() si disponible
     try:
-        logger.debug("Chargement modèle embeddings: %s", model_name)
-        # for constrained environments prefer explicit cpu device
-        try:
-            m = SentenceTransformer(model_name, device='cpu')
-        except TypeError:
-            # older versions accept device via .to('cpu') or ignore device arg
-            m = SentenceTransformer(model_name)
+        # import local pour éviter résolution au démarrage
+        import app as _app  # type: ignore
+        get_m = getattr(_app, 'get_model', None)
+        if callable(get_m):
             try:
-                m.to('cpu')
-            except Exception:
-                pass
-        _MODEL = m
-        _MODEL_NAME = model_name
-        return _MODEL
+                m = get_m()
+                if m is not None:
+                    _MODEL = m
+                    _MODEL_NAME = model_name
+                    return _MODEL
+            except Exception as exc:
+                logger.debug("app.get_model() a levé une exception: %s", exc)
     except Exception as exc:
-        logger.debug("Erreur chargement sentence-transformers model %s: %s", model_name, exc)
-        return None
+        logger.debug("Impossible d'importer app pour déléguer le chargement du modèle: %s", exc)
+
+    # Si on arrive ici, on ne peut pas charger de modèle
+    logger.debug("Aucun modèle embeddings disponible (delegated loader failed)")
+    return None
 
 
 def get_model(model_name: Optional[str] = None):
